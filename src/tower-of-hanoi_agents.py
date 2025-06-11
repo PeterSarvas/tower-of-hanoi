@@ -1,6 +1,13 @@
-from langgraph import StateGraph, END
+import os
+import json
 from typing import TypedDict
-from langchain_anthropic import ChatAnthropic
+
+try:
+    from langgraph import StateGraph, END
+    from langchain_anthropic import ChatAnthropic
+except ImportError as e:
+    print(f"Import error: {e}")
+    raise
 
 # Initialize Claude
 llm = ChatAnthropic(

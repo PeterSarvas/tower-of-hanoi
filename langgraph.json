@@ -1,17 +1,12 @@
 {
   "dependencies": [
-    ".",
-    "langchain>=0.3.0",
-    "langchain-anthropic>=0.2.0",
-    "langgraph>=0.2.0"
+    "."
   ],
   "graphs": {
     "constraint_comparison": {
-      "path": "src/tower-of-hanoi_agents.py",
-      "callable": "create_comparison_workflow",
+      "path": "./src/tower-of-hanoi_agents.py:create_comparison_workflow",
       "description": "Multi-agent vs single-agent constraint validation using Claude"
     }
   },
-  "env": ".env",
-  "python_version": "3.11"
+  "env": ".env"
 }
