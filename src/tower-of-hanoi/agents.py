@@ -536,17 +536,17 @@ def create_comparison_workflow():
     workflow.add_node("single_goal_check", goal_checker_node)
     
     # APPROACH B: Hybrid (Single Solver + Single Validator)
-    workflow.add_node("hybrid_solver", hybrid_agent_solver_node)
-    workflow.add_node("hybrid_validator", hybrid_agent_validator_node)
+    workflow.add_node("hybrid_agent_solver", hybrid_agent_solver_node)
+    workflow.add_node("hybrid_agent_validator", hybrid_agent_validator_node)
     workflow.add_node("hybrid_apply_move", apply_move_node)
     workflow.add_node("hybrid_goal_check", goal_checker_node)
     
     # APPROACH C: Multi-Agent
-    workflow.add_node("multi_propose_move", multi_agent_solver_node)
-    workflow.add_node("multi_validate_disk_count", multi_disk_count_validator_node)
-    workflow.add_node("multi_validate_position", multi_position_validator_node)
-    workflow.add_node("multi_validate_size_order", multi_size_order_validator_node)
-    workflow.add_node("multi_refine_move", multi_move_refiner_node)
+    workflow.add_node("multi_agent_solver", multi_agent_solver_node)
+    workflow.add_node("multi_disk_count_validator", multi_disk_count_validator_node)
+    workflow.add_node("multi_position_validator", multi_position_validator_node)
+    workflow.add_node("multi_size_order_validator", multi_size_order_validator_node)
+    workflow.add_node("multi_move_refiner", multi_move_refiner_node)
     workflow.add_node("multi_apply_move", apply_move_node)
     workflow.add_node("multi_goal_check", goal_checker_node)
     
@@ -565,8 +565,8 @@ def create_comparison_workflow():
         solver_routing,
         {
             "single": "single_agent_solver",
-            "hybrid": "hybrid_solver",
-            "multi": "multi_propose_move"
+            "hybrid": "hybrid_agent_solver",
+            "multi": "multi_agent_solver"
         }
     )
     
@@ -584,13 +584,13 @@ def create_comparison_workflow():
     )
     
     # APPROACH B: Hybrid solving loop
-    workflow.add_edge("hybrid_solver", "hybrid_validator")
+    workflow.add_edge("hybrid_agent_solver", "hybrid_agent_validator")
     workflow.add_conditional_edges(
-        "hybrid_validator",
+        "hybrid_agent_validator",
         hybrid_validation_routing,
         {
             "apply_move": "hybrid_apply_move",
-            "regenerate_move": "hybrid_solver"  # Loop back to solver!
+            "regenerate_move": "hybrid_agent_solver"  # Loop back to solver!
         }
     )
     workflow.add_edge("hybrid_apply_move", "hybrid_goal_check")
@@ -598,34 +598,34 @@ def create_comparison_workflow():
         "hybrid_goal_check",
         hybrid_goal_routing,
         {
-            "continue": "hybrid_solver",
+            "continue": "hybrid_agent_solver",
             "solved": "record_result",
             "failed": "record_result"
         }
     )
     
     # APPROACH C: Multi-agent solving loop
-    workflow.add_edge("multi_propose_move", "multi_validate_disk_count")
-    workflow.add_edge("multi_validate_disk_count", "multi_validate_position")
-    workflow.add_edge("multi_validate_position", "multi_validate_size_order")
+    workflow.add_edge("multi_agent_solver", "multi_disk_count_validator")
+    workflow.add_edge("multi_disk_count_validator", "multi_position_validator")
+    workflow.add_edge("multi_position_validator", "multi_size_order_validator")
     
     workflow.add_conditional_edges(
-        "multi_validate_size_order",
+        "multi_size_order_validator",
         multi_agent_constraint_routing,
         {
             "apply_move": "multi_apply_move",
-            "refine_move": "multi_refine_move"
+            "refine_move": "multi_move_refiner"
         }
     )
     
-    workflow.add_edge("multi_refine_move", "multi_validate_disk_count")
+    workflow.add_edge("multi_move_refiner", "multi_disk_count_validator")
     workflow.add_edge("multi_apply_move", "multi_goal_check")
     
     workflow.add_conditional_edges(
         "multi_goal_check",
         multi_agent_goal_routing,
         {
-            "continue": "multi_propose_move",
+            "continue": "multi_agent_solver",
             "solved": "record_result",
             "failed": "record_result"
         }
