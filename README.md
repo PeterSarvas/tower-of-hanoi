@@ -18,7 +18,8 @@ Based on the research paper "The Illusion of Thinking: Understanding the Strengt
 {
   "complexity_start": 3,
   "complexity_end": 5,
-  "solver_type": "single"
+  "solver_type": "single",
+  "runs_per_complexity": 10
 }
 ```
 
@@ -29,33 +30,54 @@ Based on the research paper "The Illusion of Thinking: Understanding the Strengt
   "results": [
     {
       "complexity": 3,
+      "run": 1,
       "solver_type": "single",
       "solved": true,
       "failed": false,
       "moves_count": 7,
       "iterations": 1,
-      "moves_sequence": ["[1,0,2]", "[2,0,1]", "[1,2,1]", "[3,0,2]", "[1,1,0]", "[2,1,2]", "[1,0,2]"],
-      "solution_analysis": {
-        "total_moves": 7,
-        "valid_moves": 7,
-        "invalid_moves": 0,
-        "goal_achieved": true,
-        "first_invalid_move": null
-      },
-      "ai_validation_passed": null,
-      "ai_constraint_violations": []
+      "moves_sequence": ["[1,0,2]", "[2,0,1]", "[1,2,1]", "[3,0,2]", "[1,1,0]", "[2,1,2]", "[1,0,2]"]
+    },
+    {
+      "complexity": 3,
+      "run": 2,
+      "solver_type": "single",
+      "solved": false,
+      "failed": true,
+      "moves_count": 4,
+      "iterations": 1
     }
   ],
   "final_report": {
     "experiment_summary": {
       "complexity_range": "3-5",
-      "total_tests": 3
+      "runs_per_complexity": 10,
+      "total_tests": 30
     },
     "single_agent_performance": {
-      "solved_count": 2,
-      "success_rate": 0.67,
-      "avg_moves": 15.5,
-      "avg_iterations": 1.0
+      "total_runs": 30,
+      "solved_count": 18,
+      "overall_success_rate": 0.6,
+      "success_by_complexity": {
+        "3": {
+          "total_runs": 10,
+          "solved_runs": 9,
+          "success_rate": 0.9,
+          "avg_moves_when_solved": 7.0
+        },
+        "4": {
+          "total_runs": 10,
+          "solved_runs": 7,
+          "success_rate": 0.7,
+          "avg_moves_when_solved": 15.0
+        },
+        "5": {
+          "total_runs": 10,
+          "solved_runs": 2,
+          "success_rate": 0.2,
+          "avg_moves_when_solved": 31.0
+        }
+      }
     }
   }
 }
@@ -110,6 +132,58 @@ Based on the research paper "The Illusion of Thinking: Understanding the Strengt
 - `complexity_start`: Starting number of disks (default: 3)
 - `complexity_end`: Ending number of disks (default: 5)  
 - `solver_type`: "single", "hybrid", or "multi"
+- `runs_per_complexity`: Number of runs per complexity level (default: 1, recommended: 10-25 for statistical significance)
+
+## Statistical Analysis
+
+### Success Rate by Complexity
+The system now tracks success rates across multiple runs, enabling analysis of the stochastic behavior described in the research paper:
+
+```json
+{
+  "success_by_complexity": {
+    "3": {"success_rate": 0.95, "total_runs": 20},
+    "4": {"success_rate": 0.85, "total_runs": 20}, 
+    "5": {"success_rate": 0.65, "total_runs": 20},
+    "6": {"success_rate": 0.40, "total_runs": 20},
+    "7": {"success_rate": 0.15, "total_runs": 20},
+    "8": {"success_rate": 0.05, "total_runs": 20},
+    "9": {"success_rate": 0.0, "total_runs": 20}
+  }
+}
+```
+
+### Recommended Test Configurations
+
+**Quick Test:**
+```json
+{
+  "complexity_start": 3,
+  "complexity_end": 6,
+  "solver_type": "single",
+  "runs_per_complexity": 5
+}
+```
+
+**Statistical Analysis:**
+```json
+{
+  "complexity_start": 3,
+  "complexity_end": 10,
+  "solver_type": "single", 
+  "runs_per_complexity": 20
+}
+```
+
+**Full Comparison:**
+```json
+{
+  "complexity_start": 3,
+  "complexity_end": 8,
+  "solver_type": "multi",
+  "runs_per_complexity": 15
+}
+```
 
 ## Output Analysis
 

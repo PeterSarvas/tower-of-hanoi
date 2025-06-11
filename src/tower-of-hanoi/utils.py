@@ -1,5 +1,5 @@
 def record_result_node(state):
-    """Record result for current complexity level"""
+    """Record result for current complexity level and run"""
     
     # Extract solution analysis details
     analysis = state.get("solution_analysis", {})
@@ -7,6 +7,7 @@ def record_result_node(state):
     
     result = {
         "complexity": state["current_complexity"],
+        "run": state.get("current_run", 1),
         "solver_type": state["solver_type"],
         "solved": state.get("solved", False),
         "failed": state.get("failed", False),
@@ -39,58 +40,108 @@ def record_result_node(state):
     
     return {"results": updated_results}
 
-def next_complexity_node(state):
-    """Move to next complexity level or complete experiment"""
+def next_iteration_node(state):
+    """Move to next run or next complexity level"""
     
-    current = state["current_complexity"]
-    end = state["complexity_end"]
+    current_complexity = state["current_complexity"]
+    current_run = state.get("current_run", 1)
+    runs_per_complexity = state.get("runs_per_complexity", 1)
+    complexity_end = state["complexity_end"]
     
-    if current < end:
+    # Check if we need more runs for current complexity
+    if current_run < runs_per_complexity:
         return {
-            "current_complexity": current + 1,
+            "current_run": current_run + 1,
             "experiment_complete": False
         }
-    else:
-        return {"experiment_complete": True}
+    
+    # All runs for current complexity done, move to next complexity
+    if current_complexity < complexity_end:
+        return {
+            "current_complexity": current_complexity + 1,
+            "current_run": 1,
+            "experiment_complete": False
+        }
+    
+    # All complexities and runs complete
+    return {"experiment_complete": True}
 
 def generate_report_node(state):
-    """Generate final comparison report"""
+    """Generate final comparison report with success rates"""
     
     results = state.get("results", [])
     
+    # Group results by solver type
     single_results = [r for r in results if r["solver_type"] == "single"]
-    hybrid_results = [r for r in results if r["solver_type"] == "hybrid"]
+    hybrid_results = [r for r in results if r["solver_type"] == "hybrid"] 
     multi_results = [r for r in results if r["solver_type"] == "multi"]
     
-    def calculate_metrics(results_list):
+    def calculate_metrics_with_success_rates(results_list):
         if not results_list:
-            return {"solved_count": 0, "success_rate": 0, "avg_moves": 0, "avg_iterations": 0}
+            return {
+                "total_runs": 0,
+                "solved_count": 0, 
+                "overall_success_rate": 0,
+                "avg_moves": 0,
+                "avg_iterations": 0,
+                "success_by_complexity": {}
+            }
         
+        total_runs = len(results_list)
         solved_count = sum(1 for r in results_list if r["solved"])
-        success_rate = solved_count / len(results_list)
+        overall_success_rate = solved_count / total_runs
         
-        # Average moves for solved cases
+        # Calculate success rates by complexity
+        complexity_groups = {}
+        for result in results_list:
+            complexity = result["complexity"]
+            if complexity not in complexity_groups:
+                complexity_groups[complexity] = {"total": 0, "solved": 0, "runs": []}
+            
+            complexity_groups[complexity]["total"] += 1
+            complexity_groups[complexity]["runs"].append(result)
+            if result["solved"]:
+                complexity_groups[complexity]["solved"] += 1
+        
+        success_by_complexity = {}
+        for complexity, data in complexity_groups.items():
+            success_rate = data["solved"] / data["total"]
+            solved_runs = [r for r in data["runs"] if r["solved"]]
+            
+            success_by_complexity[complexity] = {
+                "total_runs": data["total"],
+                "solved_runs": data["solved"],
+                "success_rate": success_rate,
+                "avg_moves_when_solved": sum(r["moves_count"] for r in solved_runs) / len(solved_runs) if solved_runs else 0,
+                "avg_iterations_when_solved": sum(r["iterations"] for r in solved_runs) / len(solved_runs) if solved_runs else 0
+            }
+        
+        # Overall averages for solved cases
         solved_results = [r for r in results_list if r["solved"]]
         avg_moves = sum(r["moves_count"] for r in solved_results) / len(solved_results) if solved_results else 0
-        
-        # Average iterations
         avg_iterations = sum(r["iterations"] for r in results_list) / len(results_list)
         
         return {
+            "total_runs": total_runs,
             "solved_count": solved_count,
-            "success_rate": success_rate,
+            "overall_success_rate": overall_success_rate,
             "avg_moves": avg_moves,
-            "avg_iterations": avg_iterations
+            "avg_iterations": avg_iterations,
+            "success_by_complexity": success_by_complexity
         }
     
     report = {
         "experiment_summary": {
             "complexity_range": f"{state['complexity_start']}-{state['complexity_end']}",
-            "total_tests": len(results)
+            "runs_per_complexity": state.get("runs_per_complexity", 1),
+            "total_tests": len(results),
+            "single_agent_tests": len(single_results),
+            "hybrid_agent_tests": len(hybrid_results),
+            "multi_agent_tests": len(multi_results)
         },
-        "single_agent_performance": calculate_metrics(single_results),
-        "hybrid_performance": calculate_metrics(hybrid_results),
-        "multi_agent_performance": calculate_metrics(multi_results),
+        "single_agent_performance": calculate_metrics_with_success_rates(single_results),
+        "hybrid_agent_performance": calculate_metrics_with_success_rates(hybrid_results),
+        "multi_agent_performance": calculate_metrics_with_success_rates(multi_results),
         "detailed_results": results,
         
         # AI validation analysis
@@ -120,6 +171,7 @@ def generate_report_node(state):
         if result.get("ai_validation_passed") is not None:
             comparison = {
                 "complexity": result["complexity"],
+                "run": result["run"],
                 "solver_type": result["solver_type"],
                 "ai_said_valid": result["ai_validation_passed"],
                 "actually_solved": result["solved"],
@@ -133,3 +185,6 @@ def generate_report_node(state):
             report["ai_validation_analysis"]["detailed_comparisons"].append(comparison)
     
     return {"final_report": report}
+
+# Keep old function name for backward compatibility
+next_complexity_node = next_iteration_node

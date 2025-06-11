@@ -4,7 +4,9 @@ class ExperimentState(TypedDict):
     # Experiment configuration
     complexity_start: int
     complexity_end: int
+    runs_per_complexity: int  # NEW: Number of runs per complexity level
     current_complexity: int
+    current_run: int          # NEW: Current run number (1, 2, 3, ...)
     
     # Current problem state
     current_state: dict

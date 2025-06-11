@@ -16,7 +16,7 @@ from .multi_agent import (
     multi_agent_apply_move_node
 )
 from .goal_checker import goal_checker_node
-from .utils import record_result_node, next_complexity_node, generate_report_node
+from .utils import record_result_node, next_iteration_node, generate_report_node
 from .routing import (
     solver_routing,
     single_agent_goal_routing,
@@ -24,7 +24,9 @@ from .routing import (
     hybrid_agent_goal_routing,
     multi_agent_constraint_routing,
     multi_agent_goal_routing,
-    experiment_routing
+    experiment_routing,
+    goal_checker_routing,
+    continue_routing
 )
 
 def create_comparison_workflow():
@@ -59,7 +61,7 @@ def create_comparison_workflow():
     
     # Result processing
     workflow.add_node("record_result", record_result_node)
-    workflow.add_node("next_complexity", next_complexity_node)
+    workflow.add_node("next_iteration", next_iteration_node)
     workflow.add_node("generate_report", generate_report_node)
     
     # Main experiment flow
@@ -117,26 +119,6 @@ def create_comparison_workflow():
     workflow.add_edge("multi_agent_apply_move", "goal_checker")
     
     # Unified goal checker routing for all approaches
-    def goal_checker_routing(state):
-        """Route from goal checker based on solver type and state"""
-        solver_type = state.get("solver_type", "single")
-        
-        if solver_type == "single":
-            return "record_result"  # Single agent always records after goal check
-        else:  # hybrid or multi
-            if state.get("solved", False) or state.get("failed", False):
-                return "record_result"
-            else:
-                return "continue"
-    
-    def continue_routing(state):
-        """Route back to appropriate solver for continuation"""
-        solver_type = state.get("solver_type", "single")
-        if solver_type == "hybrid":
-            return "hybrid_agent_solver"
-        else:  # multi
-            return "multi_agent_solver"
-    
     workflow.add_conditional_edges(
         "goal_checker",
         goal_checker_routing,
@@ -146,11 +128,11 @@ def create_comparison_workflow():
         }
     )
     
-    # Experiment progression
-    workflow.add_edge("record_result", "next_complexity")
+    # Experiment progression - now handles multiple runs per complexity
+    workflow.add_edge("record_result", "next_iteration")
     
     workflow.add_conditional_edges(
-        "next_complexity",
+        "next_iteration",
         experiment_routing,
         {
             "continue": "setup_problem",

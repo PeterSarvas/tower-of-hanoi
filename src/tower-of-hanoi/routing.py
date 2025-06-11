@@ -39,3 +39,23 @@ def multi_agent_goal_routing(state):
 
 def experiment_routing(state):
     return "complete" if state.get("experiment_complete", False) else "continue"
+
+def goal_checker_routing(state):
+    """Route from goal checker based on solver type and state"""
+    solver_type = state.get("solver_type", "single")
+    
+    if solver_type == "single":
+        return "record_result"  # Single agent always records after goal check
+    else:  # hybrid or multi
+        if state.get("solved", False) or state.get("failed", False):
+            return "record_result"
+        else:
+            return "continue"
+
+def continue_routing(state):
+    """Route back to appropriate solver for continuation"""
+    solver_type = state.get("solver_type", "single")
+    if solver_type == "hybrid":
+        return "hybrid_agent_solver"
+    else:  # multi
+        return "multi_agent_solver"
