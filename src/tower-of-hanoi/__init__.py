@@ -1,1 +1,1 @@
-# Empty file to make src a Python package
+# Tower of Hanoi Multi-Agent Experiment Package

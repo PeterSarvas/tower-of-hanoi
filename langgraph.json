@@ -4,7 +4,7 @@
   ],
   "graphs": {
     "constraint_comparison": {
-      "path": "src.tower-of-hanoi.agents:create_comparison_workflow",
+      "path": "src.tower-of-hanoi.agents:get_workflow",
       "description": "Multi-agent vs single-agent constraint validation using Claude"
     }
   },
