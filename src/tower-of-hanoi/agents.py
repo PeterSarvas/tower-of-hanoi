@@ -5,7 +5,6 @@ from langsmith import traceable
 import os
 import json
 
-
 # Check for API key at startup
 if not os.getenv("ANTHROPIC_API_KEY"):
     raise ValueError("Please set ANTHROPIC_API_KEY environment variable")
@@ -99,7 +98,7 @@ def setup_problem_node(state):
 # ================== APPROACH A: SINGLE AGENT (Paper's Approach) ==================
 
 @traceable(name="single_agent.solver")
-def single_agent_node(state):
+def single_agent_solver_node(state):
     """
     Single agent handling ALL constraints + move generation
     (Replicating the paper's monolithic approach)
@@ -145,8 +144,8 @@ def single_agent_node(state):
 
 # ================== APPROACH B: HYBRID (Single Solver + Single Validator) ==================
 
-@traceable(name="hybrid.solver")
-def hybrid_solver_node(state):
+@traceable(name="hybrid_agent.solver")
+def hybrid_agent_solver_node(state):
     """
     Hybrid approach: Generate move (will loop back if invalid)
     """
@@ -178,8 +177,8 @@ def hybrid_solver_node(state):
     
     return {"proposed_move": proposed_move}
 
-@traceable(name="hybrid.validator")
-def hybrid_validator_node(state):
+@traceable(name="hybrid_agent.validator")
+def hybrid_agent_validator_node(state):
     """
     Single validator checking all constraints
     Returns validation result without fixing anything
@@ -222,7 +221,7 @@ def hybrid_validator_node(state):
 # ================== APPROACH C: MULTI-AGENT (Decomposed Constraints) ==================
 
 @traceable(name="multi_agent.solver")
-def multi_propose_move_node(state):
+def multi_agent_solver_node(state):
     """
     Multi-agent: Strategic move generation
     """
@@ -532,18 +531,18 @@ def create_comparison_workflow():
     workflow.add_node("setup_problem", setup_problem_node)
     
     # APPROACH A: Single Agent
-    workflow.add_node("single_agent_solver", single_agent_node)
+    workflow.add_node("single_agent_solver", single_agent_solver_node)
     workflow.add_node("single_apply_move", apply_move_node)
     workflow.add_node("single_goal_check", goal_checker_node)
     
     # APPROACH B: Hybrid (Single Solver + Single Validator)
-    workflow.add_node("hybrid_solver", hybrid_solver_node)
-    workflow.add_node("hybrid_validator", hybrid_validator_node)
+    workflow.add_node("hybrid_solver", hybrid_agent_solver_node)
+    workflow.add_node("hybrid_validator", hybrid_agent_validator_node)
     workflow.add_node("hybrid_apply_move", apply_move_node)
     workflow.add_node("hybrid_goal_check", goal_checker_node)
     
     # APPROACH C: Multi-Agent
-    workflow.add_node("multi_propose_move", multi_propose_move_node)
+    workflow.add_node("multi_propose_move", multi_agent_solver_node)
     workflow.add_node("multi_validate_disk_count", multi_disk_count_validator_node)
     workflow.add_node("multi_validate_position", multi_position_validator_node)
     workflow.add_node("multi_validate_size_order", multi_size_order_validator_node)
