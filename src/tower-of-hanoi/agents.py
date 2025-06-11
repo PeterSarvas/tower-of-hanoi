@@ -5,6 +5,7 @@ from langsmith import traceable
 import os
 import json
 
+
 # Check for API key at startup
 if not os.getenv("ANTHROPIC_API_KEY"):
     raise ValueError("Please set ANTHROPIC_API_KEY environment variable")
