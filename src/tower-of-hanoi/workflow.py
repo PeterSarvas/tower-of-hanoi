@@ -19,10 +19,9 @@ from .goal_checker import goal_checker_node
 from .utils import record_result_node, next_iteration_node, generate_report_node
 from .routing import (
     solver_routing,
-    single_agent_goal_routing,
     hybrid_agent_validation_routing,
     multi_agent_constraint_routing,
-    apply_move_goal_routing,
+    apply_move_routing,
     continue_solving_routing,
     experiment_routing
 )
