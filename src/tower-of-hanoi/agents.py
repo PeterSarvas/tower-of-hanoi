@@ -142,6 +142,57 @@ def single_agent_solver_node(state):
         "agent_confidence": confidence
     }
 
+def single_agent_apply_move_node(state):
+    """Apply validated move and update game state for single agent"""
+    
+    move_str = state.get("proposed_move", "[1,0,2]")
+    current_pegs = state["current_state"]["pegs"]
+    moves_made = state.get("moves_made", [])
+    
+    try:
+        move = json.loads(move_str)
+        disk_id, from_peg, to_peg = move[0], move[1], move[2]
+        
+        if (from_peg < 3 and to_peg < 3 and 
+            len(current_pegs[from_peg]) > 0 and
+            current_pegs[from_peg][-1] == disk_id):
+            
+            new_pegs = [peg[:] for peg in current_pegs]
+            disk = new_pegs[from_peg].pop()
+            new_pegs[to_peg].append(disk)
+            
+            new_state = {"pegs": new_pegs}
+            new_moves = moves_made + [move_str]
+        else:
+            new_state = state["current_state"]
+            new_moves = moves_made
+            
+    except Exception:
+        new_state = state["current_state"]
+        new_moves = moves_made
+    
+    return {
+        "current_state": new_state,
+        "moves_made": new_moves,
+        "iteration_count": state.get("iteration_count", 0) + 1
+    }
+
+def single_agent_goal_checker_node(state):
+    """Check if current problem is solved or failed for single agent"""
+    
+    current_pegs = state["current_state"]["pegs"]
+    goal_pegs = state["goal_state"]["pegs"]
+    max_moves = state.get("max_moves", 50)
+    iteration_count = state.get("iteration_count", 0)
+    
+    solved = current_pegs[2] == goal_pegs[2]
+    failed = iteration_count >= max_moves and not solved
+    
+    return {
+        "solved": solved,
+        "failed": failed
+    }
+
 # ================== APPROACH B: HYBRID (Single Solver + Single Validator) ==================
 
 @traceable(name="hybrid_agent.solver")
@@ -218,6 +269,57 @@ def hybrid_agent_validator_node(state):
         "constraint_violations": violations
     }
 
+def hybrid_agent_apply_move_node(state):
+    """Apply validated move and update game state for hybrid agent"""
+    
+    move_str = state.get("proposed_move", "[1,0,2]")
+    current_pegs = state["current_state"]["pegs"]
+    moves_made = state.get("moves_made", [])
+    
+    try:
+        move = json.loads(move_str)
+        disk_id, from_peg, to_peg = move[0], move[1], move[2]
+        
+        if (from_peg < 3 and to_peg < 3 and 
+            len(current_pegs[from_peg]) > 0 and
+            current_pegs[from_peg][-1] == disk_id):
+            
+            new_pegs = [peg[:] for peg in current_pegs]
+            disk = new_pegs[from_peg].pop()
+            new_pegs[to_peg].append(disk)
+            
+            new_state = {"pegs": new_pegs}
+            new_moves = moves_made + [move_str]
+        else:
+            new_state = state["current_state"]
+            new_moves = moves_made
+            
+    except Exception:
+        new_state = state["current_state"]
+        new_moves = moves_made
+    
+    return {
+        "current_state": new_state,
+        "moves_made": new_moves,
+        "iteration_count": state.get("iteration_count", 0) + 1
+    }
+
+def hybrid_agent_goal_checker_node(state):
+    """Check if current problem is solved or failed for hybrid agent"""
+    
+    current_pegs = state["current_state"]["pegs"]
+    goal_pegs = state["goal_state"]["pegs"]
+    max_moves = state.get("max_moves", 50)
+    iteration_count = state.get("iteration_count", 0)
+    
+    solved = current_pegs[2] == goal_pegs[2]
+    failed = iteration_count >= max_moves and not solved
+    
+    return {
+        "solved": solved,
+        "failed": failed
+    }
+
 # ================== APPROACH C: MULTI-AGENT (Decomposed Constraints) ==================
 
 @traceable(name="multi_agent.solver")
@@ -254,7 +356,7 @@ def multi_agent_solver_node(state):
     return {"proposed_move": proposed_move}
 
 @traceable(name="multi_agent.validator.disk_count")
-def multi_disk_count_validator_node(state):
+def multi_agent_disk_count_validator_node(state):
     """Multi-agent: Disk count constraint specialist"""
     
     prompt = f"""
@@ -276,7 +378,7 @@ def multi_disk_count_validator_node(state):
     return {"single_disk_valid": valid}
 
 @traceable(name="multi_agent.validator.position")
-def multi_position_validator_node(state):
+def multi_agent_position_validator_node(state):
     """Multi-agent: Position constraint specialist"""
     
     prompt = f"""
@@ -299,7 +401,7 @@ def multi_position_validator_node(state):
     return {"top_disk_valid": valid}
 
 @traceable(name="multi_agent.validator.size_order")
-def multi_size_order_validator_node(state):
+def multi_agent_size_order_validator_node(state):
     """Multi-agent: Size ordering constraint specialist"""
     
     prompt = f"""
@@ -321,41 +423,32 @@ def multi_size_order_validator_node(state):
     
     return {"size_order_valid": valid}
 
-@traceable(name="multi_agent.refiner")
-def multi_move_refiner_node(state):
-    """Multi-agent: Fix constraint violations"""
+def multi_agent_validation_resolver_node(state):
+    """Resolver that aggregates all parallel validation results"""
+    
+    single_disk_valid = state.get("single_disk_valid", False)
+    top_disk_valid = state.get("top_disk_valid", False) 
+    size_order_valid = state.get("size_order_valid", False)
+    
+    all_valid = single_disk_valid and top_disk_valid and size_order_valid
     
     violations = []
-    if not state.get("single_disk_valid", True):
-        violations.append("single_disk")
-    if not state.get("top_disk_valid", True):
-        violations.append("top_disk")
-    if not state.get("size_order_valid", True):
-        violations.append("size_order")
+    if not single_disk_valid: violations.append("single_disk")
+    if not top_disk_valid: violations.append("top_disk") 
+    if not size_order_valid: violations.append("size_order")
     
-    prompt = f"""
-    Fix these constraint violations: {violations}
+    return {
+        "overall_valid": all_valid,
+        "constraint_violations": violations,
+        "validation_summary": {
+            "disk_count": single_disk_valid,
+            "position": top_disk_valid,
+            "size_order": size_order_valid
+        }
+    }
 
-    CURRENT MOVE: {state.get("proposed_move", "")}
-    CURRENT STATE: {state["current_state"]}
-    
-    Return JSON: {{"corrected_move": "[disk_id, from_peg, to_peg]"}}
-    """
-    
-    response = creative_llm.invoke(prompt)
-    
-    try:
-        result = json.loads(response.content.strip())
-        corrected_move = result.get("corrected_move", state.get("proposed_move", "[1,0,2]"))
-    except:
-        corrected_move = state.get("proposed_move", "[1,0,2]")
-    
-    return {"proposed_move": corrected_move}
-
-# ================== SHARED UTILITIES ==================
-
-def apply_move_node(state):
-    """Apply validated move and update game state"""
+def multi_agent_apply_move_node(state):
+    """Apply validated move and update game state for multi agent"""
     
     move_str = state.get("proposed_move", "[1,0,2]")
     current_pegs = state["current_state"]["pegs"]
@@ -389,8 +482,8 @@ def apply_move_node(state):
         "iteration_count": state.get("iteration_count", 0) + 1
     }
 
-def goal_checker_node(state):
-    """Check if current problem is solved or failed"""
+def multi_agent_goal_checker_node(state):
+    """Check if current problem is solved or failed for multi agent"""
     
     current_pegs = state["current_state"]["pegs"]
     goal_pegs = state["goal_state"]["pegs"]
@@ -404,6 +497,8 @@ def goal_checker_node(state):
         "solved": solved,
         "failed": failed
     }
+
+# ================== SHARED UTILITIES ==================
 
 def record_result_node(state):
     """Record result for current complexity level"""
@@ -485,14 +580,14 @@ def single_agent_goal_routing(state):
     else:
         return "continue"
 
-def hybrid_validation_routing(state):
+def hybrid_agent_validation_routing(state):
     """Route based on hybrid validation result"""
     if state.get("overall_valid", False):
         return "apply_move"
     else:
         return "regenerate_move"  # Loop back to solver
 
-def hybrid_goal_routing(state):
+def hybrid_agent_goal_routing(state):
     if state.get("solved", False):
         return "solved"
     elif state.get("failed", False):
@@ -506,7 +601,7 @@ def multi_agent_constraint_routing(state):
                 state.get("top_disk_valid", False) and 
                 state.get("size_order_valid", False))
     
-    return "apply_move" if all_valid else "refine_move"
+    return "apply_move" if all_valid else "regenerate_solver"
 
 def multi_agent_goal_routing(state):
     if state.get("solved", False):
@@ -532,23 +627,23 @@ def create_comparison_workflow():
     
     # APPROACH A: Single Agent
     workflow.add_node("single_agent_solver", single_agent_solver_node)
-    workflow.add_node("single_apply_move", apply_move_node)
-    workflow.add_node("single_goal_check", goal_checker_node)
+    workflow.add_node("single_agent_apply_move", single_agent_apply_move_node)
+    workflow.add_node("single_agent_goal_check", single_agent_goal_checker_node)
     
     # APPROACH B: Hybrid (Single Solver + Single Validator)
     workflow.add_node("hybrid_agent_solver", hybrid_agent_solver_node)
     workflow.add_node("hybrid_agent_validator", hybrid_agent_validator_node)
-    workflow.add_node("hybrid_apply_move", apply_move_node)
-    workflow.add_node("hybrid_goal_check", goal_checker_node)
+    workflow.add_node("hybrid_agent_apply_move", hybrid_agent_apply_move_node)
+    workflow.add_node("hybrid_agent_goal_check", hybrid_agent_goal_checker_node)
     
     # APPROACH C: Multi-Agent
     workflow.add_node("multi_agent_solver", multi_agent_solver_node)
-    workflow.add_node("multi_disk_count_validator", multi_disk_count_validator_node)
-    workflow.add_node("multi_position_validator", multi_position_validator_node)
-    workflow.add_node("multi_size_order_validator", multi_size_order_validator_node)
-    workflow.add_node("multi_move_refiner", multi_move_refiner_node)
-    workflow.add_node("multi_apply_move", apply_move_node)
-    workflow.add_node("multi_goal_check", goal_checker_node)
+    workflow.add_node("multi_agent_disk_count_validator", multi_agent_disk_count_validator_node)
+    workflow.add_node("multi_agent_position_validator", multi_agent_position_validator_node)
+    workflow.add_node("multi_agent_size_order_validator", multi_agent_size_order_validator_node)
+    workflow.add_node("multi_agent_validation_resolver", multi_agent_validation_resolver_node)
+    workflow.add_node("multi_agent_apply_move", multi_agent_apply_move_node)
+    workflow.add_node("multi_agent_goal_check", multi_agent_goal_checker_node)
     
     # Result processing
     workflow.add_node("record_result", record_result_node)
@@ -571,10 +666,10 @@ def create_comparison_workflow():
     )
     
     # APPROACH A: Single agent solving loop
-    workflow.add_edge("single_agent_solver", "single_apply_move")
-    workflow.add_edge("single_apply_move", "single_goal_check")
+    workflow.add_edge("single_agent_solver", "single_agent_apply_move")
+    workflow.add_edge("single_agent_apply_move", "single_agent_goal_check")
     workflow.add_conditional_edges(
-        "single_goal_check",
+        "single_agent_goal_check",
         single_agent_goal_routing,
         {
             "continue": "single_agent_solver",
@@ -587,16 +682,16 @@ def create_comparison_workflow():
     workflow.add_edge("hybrid_agent_solver", "hybrid_agent_validator")
     workflow.add_conditional_edges(
         "hybrid_agent_validator",
-        hybrid_validation_routing,
+        hybrid_agent_validation_routing,
         {
-            "apply_move": "hybrid_apply_move",
+            "apply_move": "hybrid_agent_apply_move",
             "regenerate_move": "hybrid_agent_solver"  # Loop back to solver!
         }
     )
-    workflow.add_edge("hybrid_apply_move", "hybrid_goal_check")
+    workflow.add_edge("hybrid_agent_apply_move", "hybrid_agent_goal_check")
     workflow.add_conditional_edges(
-        "hybrid_goal_check",
-        hybrid_goal_routing,
+        "hybrid_agent_goal_check",
+        hybrid_agent_goal_routing,
         {
             "continue": "hybrid_agent_solver",
             "solved": "record_result",
@@ -604,25 +699,31 @@ def create_comparison_workflow():
         }
     )
     
-    # APPROACH C: Multi-agent solving loop
-    workflow.add_edge("multi_agent_solver", "multi_disk_count_validator")
-    workflow.add_edge("multi_disk_count_validator", "multi_position_validator")
-    workflow.add_edge("multi_position_validator", "multi_size_order_validator")
+    # APPROACH C: Multi-agent solving loop with parallel validation
+    # Parallel edges from solver to all validators
+    workflow.add_edge("multi_agent_solver", "multi_agent_disk_count_validator")
+    workflow.add_edge("multi_agent_solver", "multi_agent_position_validator") 
+    workflow.add_edge("multi_agent_solver", "multi_agent_size_order_validator")
     
+    # All validators feed into resolver
+    workflow.add_edge("multi_agent_disk_count_validator", "multi_agent_validation_resolver")
+    workflow.add_edge("multi_agent_position_validator", "multi_agent_validation_resolver")
+    workflow.add_edge("multi_agent_size_order_validator", "multi_agent_validation_resolver")
+    
+    # Route from resolver - either apply move or regenerate
     workflow.add_conditional_edges(
-        "multi_size_order_validator",
+        "multi_agent_validation_resolver",
         multi_agent_constraint_routing,
         {
-            "apply_move": "multi_apply_move",
-            "refine_move": "multi_move_refiner"
+            "apply_move": "multi_agent_apply_move",
+            "regenerate_solver": "multi_agent_solver"  # Loop back to solver!
         }
     )
     
-    workflow.add_edge("multi_move_refiner", "multi_disk_count_validator")
-    workflow.add_edge("multi_apply_move", "multi_goal_check")
+    workflow.add_edge("multi_agent_apply_move", "multi_agent_goal_check")
     
     workflow.add_conditional_edges(
-        "multi_goal_check",
+        "multi_agent_goal_check",
         multi_agent_goal_routing,
         {
             "continue": "multi_agent_solver",
