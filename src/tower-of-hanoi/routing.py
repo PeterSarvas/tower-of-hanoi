@@ -13,14 +13,6 @@ def hybrid_agent_validation_routing(state):
     else:
         return "regenerate_move"  # Loop back to solver
 
-def hybrid_agent_goal_routing(state):
-    if state.get("solved", False):
-        return "solved"
-    elif state.get("failed", False):
-        return "failed"
-    else:
-        return "continue"
-
 def multi_agent_constraint_routing(state):
     """Route based on multi-agent constraint validation"""
     all_valid = (state.get("single_disk_valid", False) and 
@@ -29,33 +21,31 @@ def multi_agent_constraint_routing(state):
     
     return "apply_move" if all_valid else "regenerate_solver"
 
-def multi_agent_goal_routing(state):
-    if state.get("solved", False):
-        return "solved"
-    elif state.get("failed", False):
-        return "failed"
-    else:
-        return "continue"
-
-def experiment_routing(state):
-    return "complete" if state.get("experiment_complete", False) else "continue"
-
-def goal_checker_routing(state):
-    """Route from goal checker based on solver type and state"""
-    solver_type = state.get("solver_type", "single")
+def apply_move_goal_routing(state):
+    """Route from apply_move based on goal achievement"""
+    current_pegs = state["current_state"]["pegs"]
+    goal_pegs = state["goal_state"]["pegs"]
+    max_moves = state.get("max_moves", 50)
+    iteration_count = state.get("iteration_count", 0)
     
-    if solver_type == "single":
-        return "record_result"  # Single agent always records after goal check
-    else:  # hybrid or multi
-        if state.get("solved", False) or state.get("failed", False):
-            return "record_result"
-        else:
-            return "continue"
+    # Check if goal is reached
+    solved = current_pegs[2] == goal_pegs[2]
+    
+    # Check if failed (timeout)
+    failed = iteration_count >= max_moves and not solved
+    
+    if solved or failed:
+        return "goal_checker"  # Final validation
+    else:
+        return "continue_solving"  # Keep going
 
-def continue_routing(state):
-    """Route back to appropriate solver for continuation"""
+def continue_solving_routing(state):
+    """Route back to appropriate solver for next iteration"""
     solver_type = state.get("solver_type", "single")
     if solver_type == "hybrid":
         return "hybrid_agent_solver"
     else:  # multi
         return "multi_agent_solver"
+
+def experiment_routing(state):
+    return "complete" if state.get("experiment_complete", False) else "continue"

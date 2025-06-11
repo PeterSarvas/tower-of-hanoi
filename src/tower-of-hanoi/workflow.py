@@ -21,12 +21,10 @@ from .routing import (
     solver_routing,
     single_agent_goal_routing,
     hybrid_agent_validation_routing,
-    hybrid_agent_goal_routing,
     multi_agent_constraint_routing,
-    multi_agent_goal_routing,
-    experiment_routing,
-    goal_checker_routing,
-    continue_routing
+    apply_move_goal_routing,
+    continue_solving_routing,
+    experiment_routing
 )
 
 def create_comparison_workflow():
@@ -124,7 +122,8 @@ def create_comparison_workflow():
         goal_checker_routing,
         {
             "record_result": "record_result",
-            "continue": continue_routing
+            "continue_hybrid": "hybrid_agent_solver",
+            "continue_multi": "multi_agent_solver"
         }
     )
     
