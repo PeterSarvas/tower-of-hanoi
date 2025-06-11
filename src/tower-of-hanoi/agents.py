@@ -3,7 +3,7 @@ import json
 from typing import TypedDict
 
 try:
-    from langgraph import StateGraph, END
+    from langgraph.graph import StateGraph, END
     from langchain_anthropic import ChatAnthropic
 except ImportError as e:
     print(f"Import error: {e}")
