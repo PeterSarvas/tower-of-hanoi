@@ -81,17 +81,9 @@ def create_comparison_workflow():
     
     # APPROACH B: Hybrid solving loop
     workflow.add_edge("hybrid_agent_solver", "hybrid_agent_validator")
-    workflow.add_conditional_edges(
-        "hybrid_agent_validator",
-        hybrid_agent_validation_routing,
-        {
-            "apply_move": "hybrid_agent_apply_move",
-            "regenerate_move": "hybrid_agent_solver"  # Loop back to solver!
-        }
-    )
+    workflow.add_edge("hybrid_agent_validator", "hybrid_agent_apply_move")
     workflow.add_edge("hybrid_agent_apply_move", "goal_checker")
     
-    workflow.add_edge("multi_agent_apply_move", "goal_checker")
     # APPROACH C: Multi-agent solving loop with parallel validation
     # Parallel edges from solver to all validators
     workflow.add_edge("multi_agent_solver", "multi_agent_disk_count_validator")
@@ -103,16 +95,9 @@ def create_comparison_workflow():
     workflow.add_edge("multi_agent_position_validator", "multi_agent_validation_resolver")
     workflow.add_edge("multi_agent_size_order_validator", "multi_agent_validation_resolver")
     
-    # Route from resolver - either apply move or regenerate
-    workflow.add_conditional_edges(
-        "multi_agent_validation_resolver",
-        multi_agent_constraint_routing,
-        {
-            "apply_move": "multi_agent_apply_move",
-            "regenerate_solver": "multi_agent_solver"  # Loop back to solver!
-        }
-    )
-    
+    # Remove conditional edge, make direct edge to apply_move
+    workflow.add_edge("multi_agent_validation_resolver", "multi_agent_apply_move")
+
     workflow.add_edge("multi_agent_apply_move", "goal_checker")
     
     # Unified goal checker routing for all approaches
