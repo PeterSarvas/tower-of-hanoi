@@ -19,10 +19,6 @@ from .goal_checker import goal_checker_node
 from .utils import record_result_node, next_iteration_node, generate_report_node
 from .routing import (
     solver_routing,
-    hybrid_agent_validation_routing,
-    multi_agent_constraint_routing,
-    apply_move_routing,
-    continue_solving_routing,
     experiment_routing
 )
  
@@ -100,16 +96,8 @@ def create_comparison_workflow():
 
     workflow.add_edge("multi_agent_apply_move", "goal_checker")
     
-    # Unified goal checker routing for all approaches
-    workflow.add_conditional_edges(
-        "goal_checker",
-        goal_checker_routing,
-        {
-            "record_result": "record_result",
-            "continue_hybrid": "hybrid_agent_solver",
-            "continue_multi": "multi_agent_solver"
-        }
-    )
+    # Unified goal checker - direct edge to record_result
+    workflow.add_edge("goal_checker", "record_result")
     
     # Experiment progression - now handles multiple runs per complexity
     workflow.add_edge("record_result", "next_iteration")
